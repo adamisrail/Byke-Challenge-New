@@ -321,7 +321,7 @@ plt.xlabel("Region")
 plt.ylabel("average Region High Valued User")
 plt.scatter(dataHigherSpendingUsersRegion.child_region_id, dataHigherSpendingUsersRegion.averageRegionHighValuedUser, s=1) #setting the size of dot small to have a better visual
 
-# Pir Chart
+# Pie Chart
 GoodRegion = dataHigherSpendingUsersRegion['averageRegionHighValuedUser'][dataHigherSpendingUsersRegion['averageRegionHighValuedUser'] >= 0.5]
 BadRegion = dataHigherSpendingUsersRegion['averageRegionHighValuedUser'][dataHigherSpendingUsersRegion['averageRegionHighValuedUser'] < 0.5]
 GoodRegion.count()
@@ -364,6 +364,7 @@ dataset.info()
 # Answer 1
 # 1. Identify the types of Users who will be a perfect target for the new company.
 
+#Labeling the dataset
 # User who have an above average spending
 newDataHighSpendCustomer = dataset.groupby(['customer_id']).agg({'value': 'sum'
                                                                  , 'acquired_by': 'first'
@@ -388,6 +389,51 @@ newDataHighSpendCustomer.info()
 newDataHighSpendCustomer.head(20)
 
 
-#User who belong to high spending region
 
+# Applying K-Means to form clusters
+dataset.info()
+datasetKMeans = dataset.groupby(['customer_id']).agg({'value': 'sum'
+                                                                 , 'acquired_by': 'first'
+                                                                 ,'acquired_date': 'first'
+                                                                 ,'transaction_time': 'count'
+                                                                 ,'product_type': 'first'
+                                                                 ,'parent_region_id': 'first'
+                                                                 ,'child_region_id': 'first'
+                                                                 }).reset_index() #Groupby to sum value. Reseting index to not make customerid the index
+datasetKMeans = datasetKMeans.rename(columns={'value': 'TotalValue'})
+datasetKMeans = datasetKMeans.rename(columns={'transaction_time': 'TotalTransactions'})
+datasetKMeans.info()
+datasetKMeans = datasetKMeans.drop(['customer_id', 'acquired_date', 'product_type', 'parent_region_id', 'child_region_id'], axis=1)
+datasetKMeans['acquired_by'] = datasetKMeans['acquired_by'].map(dict(OFFLINE=1, ONLINE=0))
+datasetKMeans.info()
+datasetKMeans.head()
+
+
+import sys
+import matplotlib.pyplot as plt
+from sklearn.cluster import KMeans
+from sklearn.preprocessing import StandardScaler
+
+scaled_df = StandardScaler().fit_transform(datasetKMeans)
+print(scaled_df[:5])
+inertias = []
+kmeans_kwargs = {"init": "random", "n_init": 10, "random_state": 1}
+
+for i in range(1, 11):
+    kmeans = KMeans(n_clusters=i, **kmeans_kwargs)
+    kmeans.fit(scaled_df)
+    inertias.append(kmeans.inertia_)
+
+plt.plot(range(1, 11), inertias, marker='o')
+plt.title('Elbow method')
+plt.xlabel('Number of clusters')
+plt.ylabel('Inertia')
+plt.show()
+
+kmeans_kwargs = {"init": "random", "n_init": 10, "random_state": 1}
+kmeans = KMeans(n_clusters=2, **kmeans_kwargs)
+kmeans.fit(scaled_df)
+datasetKMeans['cluster'] = kmeans.labels_
+datasetKMeans.info()
+datasetKMeans['cluster'].value_counts()
 
