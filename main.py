@@ -414,7 +414,9 @@ import matplotlib.pyplot as plt
 from sklearn.cluster import KMeans
 from sklearn.preprocessing import StandardScaler
 
-scaled_df = StandardScaler().fit_transform(datasetKMeans)
+
+#Viewing the elblow using inertia (elbow method)
+scaled_df = StandardScaler().fit_transform(datasetKMeans) #Scaling the data to fit kmeans requirement
 print(scaled_df[:5])
 inertias = []
 kmeans_kwargs = {"init": "random", "n_init": 10, "random_state": 1}
@@ -430,10 +432,73 @@ plt.xlabel('Number of clusters')
 plt.ylabel('Inertia')
 plt.show()
 
+# Using 2 clusters
 kmeans_kwargs = {"init": "random", "n_init": 10, "random_state": 1}
 kmeans = KMeans(n_clusters=2, **kmeans_kwargs)
 kmeans.fit(scaled_df)
 datasetKMeans['cluster'] = kmeans.labels_
 datasetKMeans.info()
 datasetKMeans['cluster'].value_counts()
+
+plt.pie([GoodRegion.count(), BadRegion.count()], labels = ['High Spending Region', "Low Spending Region"])
+plt.pie([datasetKMeans['cluster'].value_counts()[1], datasetKMeans['cluster'].value_counts()[0]], labels = ['Cluster 1', "Cluster 2"])
+
+
+
+# 2. Identify the susceptible conditions to target and acquire the user.
+
+from scipy.stats import pearsonr
+def pvalues(df):
+    cols = pd.DataFrame(columns=df.columns)
+    p = cols.transpose().join(cols, how='outer')
+    for r in df.columns:
+        for c in df.columns:
+            tmp = df[df[r].notnull() & df[c].notnull()]
+            p[r][c] = round(pearsonr(tmp[r], tmp[c])[1], 4)
+    return p
+
+dataset.info()
+datasetPvalues = pd.DataFrame(dataset)
+datasetPvalues = datasetPvalues.drop(['customer_id', 'transaction_time', 'acquired_date', 'product_type', 'parent_region_id', 'child_region_id'], axis=1)
+datasetPvalues = datasetPvalues.drop(['z_score'], axis=1)
+datasetPvalues['acquired_by'] = datasetPvalues['acquired_by'].map(dict(OFFLINE=1, ONLINE=0))
+datasetPvalues.info()
+pvalues(datasetPvalues)
+
+
+# 3. A Predictor which helps tag newly acquired users according to the
+# a. Location
+# b. Time
+# c. Purchase Amount
+# d. Acquired By
+# e. Acquisition Time
+# The purpose of this is to identify and segregate potential sticky customers.
+
+
+
+#Labeling the dataset
+# User who have an above average spending
+newDataHighSpendCustomer = dataset.groupby(['customer_id']).agg({'value': 'sum'
+                                                                 , 'acquired_by': 'first'
+                                                                 ,'acquired_date': 'first'
+                                                                 ,'transaction_time': 'count'
+                                                                 ,'product_type': 'first'
+                                                                 ,'parent_region_id': 'first'
+                                                                 ,'child_region_id': 'first'
+                                                                 }).reset_index() #Groupby to sum value. Reseting index to not make customerid the index
+newDataHighSpendCustomer = newDataHighSpendCustomer.rename(columns={'value': 'TotalValue'})
+newDataHighSpendCustomer = newDataHighSpendCustomer.rename(columns={'transaction_time': 'TotalTransactions'})
+
+newDataHighSpendCustomer['AvgUserValue'] = newDataHighSpendCustomer['TotalValue'] / newDataHighSpendCustomer['TotalTransactions']
+newDataHighSpendCustomer['HighSpendUser'] = newDataHighSpendCustomer['AvgUserValue'].gt(newDataHighSpendCustomer['AvgUserValue'].mean()).map({True: 1, False: 0}) #Where the value of user is greater than mean than adding a column that tell the user is high valued
+newDataHighSpendCustomer.info()
+newDataHighSpendCustomer.head(20)
+
+
+# These are the user customers to target
+newDataHighSpendCustomer = newDataHighSpendCustomer[newDataHighSpendCustomer['HighSpendUser'] == 1]
+newDataHighSpendCustomer.info()
+newDataHighSpendCustomer.head(20)
+
+
 
