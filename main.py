@@ -15,9 +15,9 @@ dataset.head() #Checking if the data is either cutout, for example the columns h
 
 #Aquired data was read as object hence changing it to date time
 dataset['acquired_date'] = pd.to_datetime(dataset['acquired_date'], format='mixed') #Using format = mixed since the format is mixed
-dataset['acquired_date'].head(5)
-
 dataset.info() ##Transaction time is not set to UTC
+
+
 dataset['transaction_time'] = pd.to_datetime(dataset.transaction_time).dt.tz_localize('UTC') #Setting time to UTC
 dataset.info() #Looks Good
 
@@ -31,6 +31,7 @@ dataset.info() #Checking if the datatypes of columns are okay
 
 dataset.isna().sum() #Looking for missing values of each feature
 dataset.isna().sum().sum() #Total missing values
+dataset.dropna()
 #No missing values found
 
 print(dataset[dataset == np.inf].count() + dataset[dataset == -np.inf].count()) #Total infinity values per each feature
@@ -60,7 +61,7 @@ plt.scatter(statsData, dataset['value'], s=1) #setting the size of dot small to 
 
 #creating a histogram with 50 bins to view outliers
 plt.hist(dataset['value'], bins=50)
-
+plt.show()
 
 from scipy.stats import zscore
 dataset['z_score'] = zscore(dataset['value'])
@@ -134,6 +135,15 @@ dataAvgChildSpending = dataset.groupby(['customer_id']).agg({'transaction_time':
 dataAvgChildSpending = dataAvgChildSpending.rename(columns={'transaction_time': 'Total_Trasactions'})
 dataAvgChildSpending.info()
 dataAvgChildSpending.head(5)
+dataAvgChildSpending.max()
+
+plt.xlabel("User Transaction count")
+plt.ylabel("Transactions")
+plt.bar_label(bars)
+counts, edges, bars = plt.hist(dataAvgChildSpending['Total_Trasactions'], bins=3)
+plt.show()
+
+
 
 dataAvgChildSpending['Total_Trasactions'].mean() #Looking at the mean to know the average trasaction of a user
 trasanctionThreshold = dataAvgChildSpending['Total_Trasactions'].mean() #Setting the threshold to the mean, can be changed accordingly
